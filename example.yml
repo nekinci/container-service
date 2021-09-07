@@ -1,0 +1,7 @@
+version: 1
+name: string
+port: 3000
+image: httplogdeneme
+username: string
+password: string
+timeout: 3000
