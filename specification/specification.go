@@ -6,16 +6,17 @@ import (
 )
 
 type Specification struct {
-	Version int 	`yaml:"version"`
-	Name string 	`yaml:"name"`
-	Port int		`yaml:"port"`
-	Image string	`yaml:"image"`
-	Username string	`yaml:"username"`
-	Password string	`yaml:"password"`
-	Timeout int64	`yaml:"timeout"`
+	Version  int    `yaml:"version"`
+	Name     string `yaml:"name"`
+	Port     int    `yaml:"port"`
+	Image    string `yaml:"image"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	Timeout  int64  `yaml:"timeout"`
+	Type     string `yaml:"type"`
 }
 
-func NewApplication(stream []byte) (*Specification, error){
+func NewApplication(stream []byte) (*Specification, error) {
 	app := Specification{}
 	err := yaml.Unmarshal(stream, &app)
 	if err != nil {

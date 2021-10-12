@@ -1,7 +1,11 @@
-version: 1
-name: string
-port: 3000
-image: httplogdeneme
-username: string
-password: string
-timeout: 3000
+
+  version: 1
+  name: nginxapp
+  port: 80
+  image: nginx
+  username: user
+  password: user
+  timeout: 3000
+  type: docker
+
+

@@ -15,23 +15,21 @@ import (
 
 type Status int8
 
-
 const (
 	READY   Status = 0
 	WAITING Status = 1
 	RUNNING Status = 2
 	STOPPED Status = 3
 	PAUSED  Status = 4
-	ORPHAN  Status = 5
+	ZOMBIE  Status = 5
 )
 
 type Log string
 
 type RemoveLog struct {
-	Logs	[]Log
-	RetryCount	int
-	Mutex	sync.Mutex
-
+	Logs       []Log
+	RetryCount int
+	Mutex      sync.Mutex
 }
 
 type Container struct {
@@ -42,22 +40,22 @@ type Container struct {
 	BindingPort   *int
 	IPV4          string
 	Context       *Context
-	Logs		  []Log
-	RemoveLogs	  *RemoveLog
-	IsRemovable	  bool
-	CacheTime	  time.Duration // Garbage collector collects the orphaned or removed containers after cache time expires.
+	Logs          []Log
+	RemoveLogs    *RemoveLog
+	IsRemovable   bool
+	CacheTime     time.Duration // Garbage collector collects the zombie or removed containers after cache time expires.
 }
 
-// Creates the new container.
+// Creates a new container.
 // It requires to specification which loaded from user and the garbagecollector should be passed to container
-func NewContainer(specification*specification.Specification, context* Context) Container {
+func NewContainer(specification *specification.Specification, context *Context) Container {
 	return Container{
 		Id:            "",
 		Specification: specification,
 		StartTime:     time.Time{},
 		Status:        WAITING, // 0 Ready, 1 Waiting, 2 Running, 3 Stopping, 4 Paused // TODO Refactor it.
 		Context:       context,
-		Logs: 		   []Log{},
+		Logs:          []Log{},
 		RemoveLogs: &RemoveLog{
 			Logs:       []Log{},
 			RetryCount: 0,
@@ -67,7 +65,7 @@ func NewContainer(specification*specification.Specification, context* Context) C
 }
 
 // Run container if queue is empty
-func (container*Container) Run() error {
+func (container *Container) Run() error {
 	container.Context.Acquire(container)
 
 	port := container.Specification.GetPort()
@@ -93,7 +91,7 @@ func (container*Container) Run() error {
 }
 
 // Kill the running container
-func (container*Container) Kill() (*string, error) {
+func (container *Container) Kill() (*string, error) {
 	cmd := exec.Command("docker", "kill", container.Id[:6])
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
@@ -102,7 +100,7 @@ func (container*Container) Kill() (*string, error) {
 		return nil, err
 	}
 
-	if string(out) == container.Id[:6]{
+	if string(out) == container.Id[:6] {
 		container.Status = STOPPED
 		return nil, nil
 	}
@@ -114,7 +112,7 @@ func (container*Container) Kill() (*string, error) {
 // Kills the container when its expires.
 // container: Current Container
 func (container *Container) ScheduleKill() {
-	timer := time.NewTimer(2 * time.Minute)
+	timer := time.NewTimer(1 * time.Minute)
 	done := make(chan bool)
 	go func() {
 		<-timer.C
@@ -125,14 +123,14 @@ func (container *Container) ScheduleKill() {
 	log.Printf("Container killing: %s\n", container.Id[:6])
 
 	cid, err := container.Kill()
-	if err != nil{
+	if err != nil {
 		log.Printf("An error occurred while killing container: %s\n", container.Id[:6])
-		container.Status = ORPHAN
+		container.Status = ZOMBIE
 		return
 	}
 
-	if *cid == container.Id[:6]{
-		container.Status = STOPPED
+	if *cid == container.Id[:6] {
+		container.Status = PAUSED
 	}
 
 	go container.Context.Release(container)
@@ -144,7 +142,7 @@ func (container *Container) ScheduleKill() {
 
 }
 
-func (container *Container) Remove() error {
+func (container *Container) RemoveImage() error {
 
 	var err error = nil
 	cmd := exec.Command("docker", "rmi", "-f", container.Specification.Name)
@@ -161,9 +159,38 @@ func (container *Container) Remove() error {
 
 	<-done
 
-	if err == nil && util.IsEmpty(errorBuff){
+	if err == nil && util.IsEmpty(errorBuff) {
 		err = errors.New(string(errorBuff))
 	}
+
+	return err
+}
+
+func (container *Container) RemoveContainer() error {
+	var err error = nil
+	cmd := exec.Command("docker", "rm", "-f", container.Id[:6])
+
+	errorBuff := make([]byte, 512)
+
+	done := make(chan bool)
+	go func() {
+		cmd.Stderr.Write(errorBuff)
+		done <- true
+	}()
+
+	out, err := cmd.Output()
+
+	if string(out) != container.Id[:6] {
+		err = errors.New("Removed container id mismatch with container id: " + container.Id[:6])
+	}
+
+	<-done
+
+	if err == nil && !util.IsEmpty(errorBuff) {
+		err = errors.New(string(errorBuff))
+	}
+
+	container.Status = STOPPED
 
 	return err
 }
@@ -179,7 +206,6 @@ func GetBindingAddress(container *Container) (string, *int) {
 		panic(err)
 	}
 
-
 	addr := strings.Split(strings.TrimSpace(string(output)), ":") // Only for ipv4
 	port, err := strconv.Atoi(addr[1])
 	if err != nil {
@@ -188,5 +214,3 @@ func GetBindingAddress(container *Container) (string, *int) {
 
 	return addr[0], &port
 }
-
-
