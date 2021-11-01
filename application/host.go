@@ -1,4 +1,4 @@
-package core
+package application
 
 // Host is a port interface that relation between proxy and internal application.
 type Host interface {

@@ -1,11 +1,10 @@
 package application
 
 import (
-	"github.com/nekinci/paas/core"
 	"strings"
 )
 
-func WildcardStrategy(key string, ctx Context) core.Host {
+func WildcardStrategy(key string, ctx Context) Host {
 	if key == "" {
 		return nil
 	}
@@ -30,7 +29,6 @@ func WildcardStrategy(key string, ctx Context) core.Host {
 	return *ctx.validApplications[newKey]
 }
 
-func UrlStrategy(key string, ctx Context) core.Host {
-	// Not implemented yet.
-	return nil
+func UrlStrategy(key string, ctx Context) Host {
+	panic("Not implemented yet!")
 }

@@ -1,0 +1,10 @@
+version: 1
+name: nginxapp
+port: 80
+image: nginx
+username: user
+password: user
+timeout: 3000
+type: docker
+
+

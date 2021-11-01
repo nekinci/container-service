@@ -2,9 +2,9 @@ package application
 
 import (
 	context2 "context"
-	"github.com/nekinci/paas/core"
 	"github.com/nekinci/paas/specification"
 	"golang.org/x/sync/semaphore"
+	"time"
 )
 
 const (
@@ -17,7 +17,7 @@ type Context struct {
 	invalidApplications  map[string]*Application
 	sema                 *semaphore.Weighted
 	ctx                  context2.Context
-	embeddedApplications map[string]core.Host
+	embeddedApplications map[string]Host
 }
 
 func (context *Context) RunApplication(specification specification.Specification) *Application {
@@ -37,6 +37,24 @@ func (context *Context) RunApplication(specification specification.Specification
 	return &newApplication
 }
 
+func (context *Context) GetApplication(app string) Application {
+	application := context.Get(app).(Application)
+	return application
+}
+
+func (context *Context) GetApplicationsByUser(email string) []string {
+	var userApps []string = []string{}
+
+	for _, value := range context.validApplications {
+		app := *value
+		if app.GetApplicationInfo().UserEmail == email {
+			userApps = append(userApps, app.GetApplicationInfo().Name)
+		}
+	}
+
+	return userApps
+}
+
 func (context *Context) KillApplication(application Application) {
 	id, err := application.Kill()
 
@@ -53,10 +71,24 @@ func (context *Context) KillApplication(application Application) {
 		application.SetStatus(ZOMBIE)
 		context.invalidateApplication(application)
 	}
+
+	context.sema.Release(1)
+
+}
+
+func (context *Context) ScheduleKill(application *Application) {
+	timer := time.NewTimer(10 * time.Minute)
+	done := make(chan bool)
+	go func() {
+		<-timer.C
+		done <- true
+	}()
+	<-done
+	context.KillApplication(*application)
 }
 
 // Get returns a Host.
-func (context Context) Get(key string) core.Host {
+func (context Context) Get(key string) Host {
 	// return UrlStrategy(key, context)
 	return WildcardStrategy(key, context)
 }
@@ -72,10 +104,11 @@ func (context Context) invalidateApplication(application Application) {
 
 // NewContext returns new context with embeddedApplications: core.Host
 func NewContext() *Context {
-	embeddedApplications := make(map[string]core.Host)
-	embeddedApplications[""] = core.NewEmbeddedTcpApplication("", "5000")
-	embeddedApplications["www"] = core.NewEmbeddedTcpApplication("www", "5000")
-	embeddedApplications["frontend"] = core.NewEmbeddedTcpApplication("frontend", "5100")
+	embeddedApplications := make(map[string]Host)
+	embeddedApplications[""] = NewEmbeddedTcpApplication("", "3000")
+	embeddedApplications["www"] = NewEmbeddedTcpApplication("www", "3000")
+	embeddedApplications["frontend"] = NewEmbeddedTcpApplication("frontend", "5200")
+	embeddedApplications["api"] = NewEmbeddedTcpApplication("api", "8070")
 	return &Context{
 		validApplications:    make(map[string]*Application),
 		invalidApplications:  make(map[string]*Application),

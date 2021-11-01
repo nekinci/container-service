@@ -13,6 +13,7 @@ axios.interceptors.request.use(function (cfg: AxiosRequestConfig){
     }
 
     if (!skippedEndpoints.includes(url)){
+        // @ts-ignore
         cfg.headers.Authorization = `Bearer ${AuthUtil.getInformation()?.token}`
     }
 

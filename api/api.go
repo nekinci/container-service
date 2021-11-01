@@ -1,19 +1,25 @@
-package main
+package api
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/nekinci/paas/application"
+	"github.com/nekinci/paas/proxy"
+	"github.com/nekinci/paas/specification"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/mail"
-	"os/exec"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,13 +28,22 @@ var (
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
-	allowedEndpoints = []string{"/register", "/login", "/refreshToken", "/ws"}
+	allowedEndpoints = []string{"/register", "/login", "/refreshToken", "/logs", "/terminal"}
+	host             = "localhost:7888"
 )
 
-func main() {
+type WebApi struct {
+	proxy *proxy.Proxy
+	r     *gin.Engine
+}
 
+func ListenAndServe(c *proxy.Proxy) {
 	addr := "127.0.0.1:8070"
 	r := gin.Default()
+	w := WebApi{
+		proxy: c,
+		r:     r,
+	}
 
 	r.Use(CORSMiddleware())
 	r.Use(wsMiddleware)
@@ -40,10 +55,60 @@ func main() {
 
 	r.POST("/refreshToken", refreshToken)
 
-	r.GET("/ws", serveWs)
+	r.GET("/myApps", w.myApps)
 
+	r.GET("/terminal", w.terminalWS)
+	r.GET("/logs", w.logsWS)
+	r.GET("/ws", w.logsWS)
+	r.POST("/run", w.runApplication)
+	r.GET("/info/:appName", w.appInfo)
+	_ = w
 	_ = r.Run(addr)
 
+}
+
+func (w *WebApi) appInfo(context *gin.Context) {
+	appName := (context).Param("appName")
+	app := w.proxy.GetApplication(appName)
+	if app != nil {
+		info := app.GetApplicationInfo()
+		context.JSON(200, gin.H{
+			"name":         info.Name,
+			"url":          "http://" + info.Name + "." + host,
+			"environments": nil,
+			"owner":        info.UserEmail,
+			"containerId":  info.Id,
+			"startTime":    info.StartTime,
+			"status":       info.Status,
+			"image":        info.Image,
+		})
+		return
+	}
+
+	context.JSON(404, gin.H{
+		"message": "Application not found!",
+	})
+
+}
+
+func (w *WebApi) runApplication(context *gin.Context) {
+	file, err := context.FormFile("file")
+	if err != nil {
+		return
+	}
+	open, err := file.Open()
+	defer open.Close()
+	all, _ := ioutil.ReadAll(open)
+	application, err := specification.NewApplication(all)
+	currentUserEmail, _ := context.Get("CurrentUserEmail")
+	application.Email = currentUserEmail.(string)
+	w.proxy.Handle(application)
+
+	context.JSON(200, gin.H{
+		"code":    200,
+		"message": "Container started.",
+		"appName": application.Name,
+	})
 }
 
 func CORSMiddleware() gin.HandlerFunc {
@@ -98,7 +163,7 @@ func authMiddleware(context *gin.Context) {
 
 func wsMiddleware(context *gin.Context) {
 	path := context.Request.URL.Path
-	if path != "/ws" {
+	if path != "/logs" && path != "/terminal" {
 		return
 	}
 
@@ -114,6 +179,14 @@ func wsMiddleware(context *gin.Context) {
 		context.String(401, "Un-authorized")
 		return
 	}
+
+	currentApp, isThere := context.GetQuery("currentApp")
+	if !isThere {
+		context.Status(400)
+		return
+	}
+
+	context.Set("CurrentApp", currentApp)
 	context.Set("CurrentUserEmail", payload.Email)
 
 }
@@ -217,7 +290,45 @@ func register(ctx *gin.Context) {
 	ctx.String(201, "Account created successfully!")
 }
 
-func serveWs(context *gin.Context) {
+func (w *WebApi) logsWS(context *gin.Context) {
+	upgrader.CheckOrigin = func(r *http.Request) bool {
+		return true
+	}
+
+	ws, err := upgrader.Upgrade(context.Writer, context.Request, nil)
+	if err != nil {
+		log.Printf("upgrade: %v\n", err)
+		return
+	}
+
+	currentApp, _ := context.Get("CurrentApp")
+	currentEmail, _ := context.Get("CurrentUserEmail")
+	app := w.proxy.GetApplication(currentApp.(string))
+
+	if app == nil {
+		context.Status(404)
+		return
+	}
+
+	if app.GetApplicationInfo().UserEmail != currentEmail.(string) {
+		context.Status(401)
+		return
+	}
+
+	var mu sync.Mutex
+	app.LogStream(func(l application.Log) {
+		mu.Lock()
+		defer mu.Unlock()
+		if l.Show {
+			ws.WriteMessage(1, []byte(l.Format()))
+		}
+	})
+
+	go app.ListenLogs()
+
+}
+
+func (w *WebApi) terminalWS(context *gin.Context) {
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	ws, err := upgrader.Upgrade(context.Writer, context.Request, nil)
 
@@ -225,64 +336,68 @@ func serveWs(context *gin.Context) {
 		log.Print("upgrade:", err)
 		return
 	}
-	cmd := exec.Command("docker", "exec", "-i", "f18b", "/bin/sh")
+	currentApp, _ := context.Get("CurrentApp")
+	currentEmail, _ := context.Get("CurrentUserEmail")
+	app := w.proxy.GetApplication(currentApp.(string))
 
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		log.Println(err)
+	if app == nil {
+		context.Status(404)
 		return
 	}
 
+	if app.GetApplicationInfo().UserEmail != currentEmail.(string) {
+		context.Status(401)
+		return
+	}
+
+	terminal, cancel, err := app.OpenTerminal()
+
+	if err != nil {
+		ws.WriteMessage(1, []byte(fmt.Sprintf("%v", err)))
+		ws.Close()
+		return
+	}
+
+	defer cancel()
+
 	go func(c1 *websocket.Conn) {
 		for {
-			_, message, err := c1.NextReader()
+			_, msg, err := c1.ReadMessage()
 			if err != nil {
 				c1.Close()
 				break
 			}
-			io.Copy(stdin, message)
+
+			io.Copy(*terminal.Stdin, bytes.NewReader(msg))
+
 		}
 	}(ws)
 
-	ws.WriteMessage(1, []byte("Starting...\n"))
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	if err := cmd.Start(); err != nil {
-		log.Println(err)
-		return
-	}
-
 	go func() {
-		outScan := bufio.NewScanner(stdout)
+		outScan := bufio.NewScanner(*terminal.Stdout)
+		var mu sync.Mutex
 		for outScan.Scan() {
+			mu.Lock()
 			ws.WriteMessage(1, outScan.Bytes())
+			mu.Unlock()
 		}
-
 	}()
 
-	errScan := bufio.NewScanner(stderr)
+	errScan := bufio.NewScanner(*terminal.Stderr)
+	var mu sync.Mutex
 	for errScan.Scan() {
+		mu.Lock()
 		ws.WriteMessage(1, errScan.Bytes())
-	}
-
-	if err := cmd.Wait(); err != nil {
-		log.Println(err)
-		return
+		mu.Unlock()
 	}
 
 	ws.WriteMessage(1, []byte("Ending.."))
 
+}
+
+func (w *WebApi) myApps(context *gin.Context) {
+	email, _ := context.Get("CurrentUserEmail")
+	context.JSON(200, w.proxy.GetApplicationsByUser(email.(string)))
 }
 
 func isEmailValid(email string) bool {

@@ -14,6 +14,7 @@ type Specification struct {
 	Password string `yaml:"password"`
 	Timeout  int64  `yaml:"timeout"`
 	Type     string `yaml:"type"`
+	Email    string
 }
 
 func NewApplication(stream []byte) (*Specification, error) {

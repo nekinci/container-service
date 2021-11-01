@@ -1,15 +1,16 @@
-package main
+package api
 
 import (
 	"context"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
+	"os"
 	"sync"
 )
 
 var mongoOnce sync.Once
-var ConnString = `mongodb+srv://nekinci:%2BNiyazi678%2B@cluster0.p7nvm.mongodb.net/ContainerService?retryWrites=true&w=majority`
+var ConnString = os.Getenv("MONGO_CONN_STRING")
 var clientInstance *mongo.Client
 
 func GetMongoClient() *mongo.Client {

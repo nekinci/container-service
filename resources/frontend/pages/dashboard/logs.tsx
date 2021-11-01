@@ -1,20 +1,29 @@
 import React from "react";
 import Terminal, {LineType} from "react-terminal-ui";
-import {DashboardMain} from "../../src/components/DashboardMain/DashboardMain";
+import DashboardMain from "../../src/components/DashboardMain/DashboardMain";
 import {AuthUtil} from "../../src/util/AuthUtil";
+import {useApp} from "../../src/hooks/useApp";
 
 
 export default function Logs(){
 
     const [ws, setWs] = React.useState<WebSocket>(null);
+    const [currentApp] = useApp();
     const [lines, setLines] = React.useState([
         {type: LineType.Output, value: 'Welcome to the React Terminal UI Demo!'},
         {type: LineType.Input, value: 'Some previous input received'},
     ]);
 
     React.useEffect(() => {
-        setWs(new WebSocket("ws://localhost:8070/ws?token=" + AuthUtil.getInformation()?.token));
-    }, []);
+        if (currentApp != null){
+            setWs(new WebSocket("ws://localhost:8070/logs?token=" + AuthUtil.getInformation()?.token + '&currentApp=' + currentApp));
+            return () => {
+                if (ws != null){
+                    ws.close()
+                }
+            }
+        }
+    }, [currentApp]);
 
     React.useEffect(() => {
         if (ws != null){
@@ -35,7 +44,6 @@ export default function Logs(){
                     ws.send(terminalInput + "\n")
                 } } lineData={lines} />
             )}
-            {lines.map(x => <div key={x}>{x.value}</div>)}
         </DashboardMain>
     )
 }

@@ -2,7 +2,6 @@ import {Avatar, Backdrop, Button, CircularProgress, Container, Menu, MenuItem, T
 import React from 'react';
 import {Login, UserInformation} from '../modals/Login/Login';
 import {AuthUtil} from "../../util/AuthUtil";
-import {isNullOrUndefined} from "util";
 import http from "../../client/http";
 import {getEnvironment} from "../../../environment/environment";
 import {deepOrange} from "@mui/material/colors";

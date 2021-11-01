@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"crypto/rand"
@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-var ErrExpiredToken = errors.New("Token is expired")
-var ErrInvalidToken = errors.New("Token is invalid")
+var ErrExpiredToken = errors.New("Token is expired\n")
+var ErrInvalidToken = errors.New("Token is invalid\n")
 
 type TokenPayload struct {
 	UserId    string `json:"user_id"`

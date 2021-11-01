@@ -7,7 +7,7 @@ export class EnvironmentDev implements Environment{
 
     constructor() {
         this.env = 'DEV';
-        this.rootUrl = 'http://localhost:8070/';
+        this.rootUrl = 'http://api.localhost:7888/';
         this.snackbarHideDuration = 5000;
     }
 

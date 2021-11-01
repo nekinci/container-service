@@ -1,6 +1,6 @@
 
   version: 1
-  name: nginxapp
+  name: hello-world12
   port: 80
   image: nginx
   username: user
