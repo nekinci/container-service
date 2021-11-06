@@ -5,9 +5,6 @@ import (
 )
 
 func WildcardStrategy(key string, ctx Context) Host {
-	if key == "" {
-		return nil
-	}
 
 	splittedKey := strings.Split(key, ".")
 	newKey := splittedKey[0]
