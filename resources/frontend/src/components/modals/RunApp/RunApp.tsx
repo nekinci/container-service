@@ -1,4 +1,5 @@
 import {
+    Alert,
     Backdrop,
     Button,
     Card, CardActions,
@@ -18,7 +19,19 @@ import {useApp} from "../../../hooks/useApp";
 import {useRouter} from "next/router";
 import GenericSnackbar from "../../Snackbar/GenericSnackbar";
 import event from "../../../util/Event";
+import {func} from "prop-types";
+import {LineType} from "react-terminal-ui";
+import App from "next/app";
+import {AuthUtil} from "../../../util/AuthUtil";
 
+
+type AppState = {
+    Type: string,
+    Content: string,
+    ApplicationCount: number,
+    Time: Date | string,
+    MaxApplicationCount: number
+}
 
 const Input = styled('input')({
     display: 'none'
@@ -47,6 +60,9 @@ export function RunApp() {
     const [currentApp, isThereAnyApp, setCurrentApp] = useApp();
     const [open, setOpen] = React.useState(false);
     const [from, setFrom] = React.useState(null);
+    const [ws, setWS] = React.useState<WebSocket>(null);
+    const [applicationCount, setApplicationCount] = React.useState(0);
+    const [maxApplicationCount, setMaxApplicationCount] = React.useState(1);
     const router = useRouter();
 
     React.useEffect(() => {
@@ -54,7 +70,28 @@ export function RunApp() {
             setOpen(true);
             setFrom(fromq);
         })
+
+        setWS(new WebSocket("ws://localhost:8070" + "/appState?token=" + AuthUtil.getInformation()?.token))
+
+        return () => {
+            if (ws != null) {
+                ws.close();
+            }
+        }
     }, []);
+
+    React.useEffect(() => {
+        if (ws != null) {
+            ws.onopen = function (event) {
+                ws.onmessage = function (message){
+                    const event: AppState = JSON.parse(message.data) as AppState;
+                    setApplicationCount(event.ApplicationCount);
+                    setMaxApplicationCount(event.MaxApplicationCount);
+                    console.log(event);
+                }
+            }
+        }
+    }, [ws]);
 
     React.useEffect(async () => {
         if (from === 'TryIt' ){
@@ -102,7 +139,8 @@ export function RunApp() {
         }, (err) => {
             setBackdropOpen(false);
             setOpen(true);
-            event.emit('snackbar', err.response.data.message)
+            console.log(err.response)
+            event.emit('snackbar', err.response.data.message, 'error')
         });
     }
 
@@ -122,6 +160,9 @@ export function RunApp() {
                         </CardHeader>
                         <CardContent>
                             <Divider />
+                            <Alert  severity="info">
+                                <Typography variant={'body2'}>A maximum of {maxApplicationCount} applications are allowed. Current: {applicationCount}</Typography>
+                            </Alert>
                            <div style={{padding:'150px 50px'}}>
                                <Typography component={'div'} variant={'body1'} color={'secondary'}>Choose a yaml file which contain application informations</Typography>
                                <Typography variant={'subtitle2'} align={'center'}>{selectedFileName}</Typography>
@@ -131,7 +172,7 @@ export function RunApp() {
                                    </Button>
                                    <div>
                                        <label htmlFor={'upload-yml'}>
-                                           <Input accept={'.yml, .yaml'} onChange={chooseFile} id={'upload-yml'} type={'file'} />
+                                           <Input onChange={chooseFile} id={'upload-yml'} type={'file'} />
                                            <Button variant={'contained'} component={'span'}>Choose file</Button>
                                        </label>
                                    </div>

@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"github.com/nekinci/paas/application"
 	"github.com/nekinci/paas/garbagecollector"
-	"github.com/nekinci/paas/specification"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"strings"
 )
 
 var (
@@ -19,19 +17,17 @@ var (
 )
 
 type Proxy struct {
-	ctx application.Context
+	ctx *application.Context
 }
 
-func NewServer() Proxy {
-	proxy := Proxy{
-		ctx: *application.NewContext(),
-	}
+func NewServer(ctx *application.Context) Proxy {
+	proxy := Proxy{ctx: ctx}
 	return proxy
 }
 
 func (p Proxy) ListenAndServeL7(addr string) error {
 
-	go garbagecollector.ScheduleCollect(&p.ctx)
+	go garbagecollector.ScheduleCollect(p.ctx)
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		hostName := request.Host
 		println(hostName)
@@ -172,21 +168,3 @@ func serveProxy(target string, res http.ResponseWriter, req *http.Request) {
 //
 //	return hostHeader, nil
 //}
-
-func getPrefix(hostname string) string {
-	split := strings.Split(hostname, ".")
-	return split[0]
-}
-
-func (p Proxy) Handle(app *specification.Specification) {
-	application := p.ctx.RunApplication(*app)
-	go p.ctx.ScheduleKill(application)
-}
-
-func (p Proxy) GetApplication(app string) application.Application {
-	return p.ctx.GetApplication(app)
-}
-
-func (p Proxy) GetApplicationsByUser(email string) []string {
-	return p.ctx.GetApplicationsByUser(email)
-}

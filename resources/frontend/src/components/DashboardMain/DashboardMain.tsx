@@ -60,7 +60,7 @@ export default function DashboardMain({children}: any){
 
         http.get(getEnvironment().rootUrl + 'myApps').then((data) => {
             if (currentApp !== null){
-                if (!data.data.includes(currentApp)){
+                if (!data.data?.includes(currentApp)){
                     setCurrentApp(null);
                 }
             }

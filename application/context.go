@@ -2,8 +2,9 @@ package application
 
 import (
 	context2 "context"
+	"errors"
 	"github.com/nekinci/paas/specification"
-	"golang.org/x/sync/semaphore"
+	"sync"
 	"time"
 )
 
@@ -15,31 +16,33 @@ const (
 type Context struct {
 	validApplications    map[string]*Application
 	invalidApplications  map[string]*Application
-	sema                 *semaphore.Weighted
 	ctx                  context2.Context
 	embeddedApplications map[string]Host
+	stateListeners       []StateListener
+	stateMu              sync.Mutex
+	appMu                sync.Mutex
 }
 
-func (context *Context) RunApplication(specification specification.Specification) *Application {
-
-	context.sema.Acquire(context.ctx, 1)
+func (context *Context) RunApplication(specification specification.Specification) (*Application, error) {
 
 	newApplication := NewApplication(specification)
 	err := newApplication.Run()
 	if err != nil {
-		context.sema.Release(1)
-		return nil
+		return nil, err
 	}
 
 	newApplication.SetStatus(RUNNING)
 	context.addValidApplication(newApplication)
 
-	return &newApplication
+	return &newApplication, nil
 }
 
 func (context *Context) GetApplication(app string) Application {
-	application := context.Get(app).(Application)
-	return application
+	application := context.Get(app)
+	if application == nil {
+		return nil
+	}
+	return application.(Application)
 }
 
 func (context *Context) GetApplicationsByUser(email string) []string {
@@ -72,8 +75,6 @@ func (context *Context) KillApplication(application Application) {
 		context.invalidateApplication(application)
 	}
 
-	context.sema.Release(1)
-
 }
 
 func (context *Context) ScheduleKill(application *Application) {
@@ -94,7 +95,15 @@ func (context Context) Get(key string) Host {
 }
 
 func (context Context) addValidApplication(application Application) {
+	context.appMu.Lock()
+	defer context.appMu.Unlock()
 	context.validApplications[application.GetApplicationInfo().Name] = &application
+	keyCount := getMapSize(context.validApplications)
+
+	for _, f := range context.stateListeners {
+		f(NewStateEvent(VALIDATE, "Application started", keyCount))
+	}
+
 }
 
 func (context *Context) InvalidApplications() map[string]*Application {
@@ -102,8 +111,33 @@ func (context *Context) InvalidApplications() map[string]*Application {
 }
 
 func (context Context) invalidateApplication(application Application) {
+	context.appMu.Lock()
+	defer context.appMu.Unlock()
 	context.invalidApplications[application.GetApplicationInfo().Name] = &application
 	delete(context.validApplications, application.GetApplicationInfo().Name)
+
+	keyCount := getMapSize(context.validApplications)
+
+	for _, f := range context.stateListeners {
+		f(NewStateEvent(INVALIDATE, "Application stopped.", keyCount))
+	}
+}
+
+func (context *Context) Handle(app *specification.Specification) error {
+	context.appMu.Lock()
+	appCount := getMapSize(context.validApplications)
+	context.appMu.Unlock()
+
+	if appCount >= applicationLimit {
+		return errors.New("Application limit exceeded\n")
+	}
+
+	application, err := context.RunApplication(*app)
+	if err != nil {
+		return err
+	}
+	go context.ScheduleKill(application)
+	return nil
 }
 
 func (context Context) AnyValidApplication(image string) bool {
@@ -116,6 +150,14 @@ func (context Context) AnyValidApplication(image string) bool {
 	return false
 }
 
+func getMapSize(dict map[string]*Application) int {
+	var count int
+	for _, _ = range dict {
+		count = count + 1
+	}
+	return count
+}
+
 // NewContext returns new context with embeddedApplications: core.Host
 func NewContext() *Context {
 	embeddedApplications := make(map[string]Host)
@@ -126,8 +168,8 @@ func NewContext() *Context {
 	return &Context{
 		validApplications:    make(map[string]*Application),
 		invalidApplications:  make(map[string]*Application),
-		sema:                 semaphore.NewWeighted(int64(applicationLimit)),
 		ctx:                  context2.Background(),
 		embeddedApplications: embeddedApplications,
+		stateListeners:       []StateListener{},
 	}
 }

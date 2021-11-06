@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/nekinci/paas/application"
-	"github.com/nekinci/paas/proxy"
 	"github.com/nekinci/paas/specification"
 	"io"
 	"io/ioutil"
@@ -28,21 +27,21 @@ var (
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
-	allowedEndpoints = []string{"/register", "/login", "/refreshToken", "/logs", "/terminal"}
+	allowedEndpoints = []string{"/register", "/login", "/refreshToken", "/logs", "/terminal", "/appState"}
 	host             = "localhost:7888"
 )
 
 type WebApi struct {
-	proxy *proxy.Proxy
-	r     *gin.Engine
+	appCtx *application.Context
+	r      *gin.Engine
 }
 
-func ListenAndServe(c *proxy.Proxy) {
+func ListenAndServe(c *application.Context) {
 	addr := "127.0.0.1:8070"
 	r := gin.Default()
 	w := WebApi{
-		proxy: c,
-		r:     r,
+		appCtx: c,
+		r:      r,
 	}
 
 	r.Use(CORSMiddleware())
@@ -62,6 +61,7 @@ func ListenAndServe(c *proxy.Proxy) {
 	r.GET("/ws", w.logsWS)
 	r.POST("/run", w.runApplication)
 	r.GET("/info/:appName", w.appInfo)
+	r.GET("/appState", w.getState)
 	_ = w
 	_ = r.Run(addr)
 
@@ -77,7 +77,7 @@ func (w *WebApi) appInfo(context *gin.Context) {
 		return
 	}
 
-	app := w.proxy.GetApplication(appName)
+	app := w.appCtx.GetApplication(appName)
 	if app != nil {
 		info := app.GetApplicationInfo()
 		context.JSON(200, gin.H{
@@ -125,14 +125,22 @@ func (w *WebApi) runApplication(context *gin.Context) {
 	if appErr != nil {
 		context.JSON(400, gin.H{
 			"code":    400,
-			"message": "File invalid, upload valid yaml file please.",
+			"message": "File invalid, please upload valid yaml file.",
 		})
 		return
 	}
 
 	currentUserEmail, _ := context.Get("CurrentUserEmail")
 	application.Email = currentUserEmail.(string)
-	w.proxy.Handle(application)
+	handleErr := w.appCtx.Handle(application)
+
+	if handleErr != nil {
+		context.JSON(400, gin.H{
+			"code":    400,
+			"message": handleErr.Error(),
+		})
+		return
+	}
 
 	context.JSON(200, gin.H{
 		"code":    200,
@@ -193,7 +201,7 @@ func authMiddleware(context *gin.Context) {
 
 func wsMiddleware(context *gin.Context) {
 	path := context.Request.URL.Path
-	if path != "/logs" && path != "/terminal" {
+	if path != "/logs" && path != "/terminal" && path != "/appState" {
 		return
 	}
 
@@ -212,8 +220,7 @@ func wsMiddleware(context *gin.Context) {
 
 	currentApp, isThere := context.GetQuery("currentApp")
 	if !isThere {
-		context.Status(400)
-		return
+		currentApp = ""
 	}
 
 	context.Set("CurrentApp", currentApp)
@@ -333,7 +340,7 @@ func (w *WebApi) logsWS(context *gin.Context) {
 
 	currentApp, _ := context.Get("CurrentApp")
 	currentEmail, _ := context.Get("CurrentUserEmail")
-	app := w.proxy.GetApplication(currentApp.(string))
+	app := w.appCtx.GetApplication(currentApp.(string))
 
 	if app == nil {
 		context.Status(404)
@@ -368,7 +375,7 @@ func (w *WebApi) terminalWS(context *gin.Context) {
 	}
 	currentApp, _ := context.Get("CurrentApp")
 	currentEmail, _ := context.Get("CurrentUserEmail")
-	app := w.proxy.GetApplication(currentApp.(string))
+	app := w.appCtx.GetApplication(currentApp.(string))
 
 	if app == nil {
 		context.Status(404)
@@ -427,7 +434,20 @@ func (w *WebApi) terminalWS(context *gin.Context) {
 
 func (w *WebApi) myApps(context *gin.Context) {
 	email, _ := context.Get("CurrentUserEmail")
-	context.JSON(200, w.proxy.GetApplicationsByUser(email.(string)))
+	context.JSON(200, w.appCtx.GetApplicationsByUser(email.(string)))
+}
+
+func (w *WebApi) getState(context *gin.Context) {
+	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+	ws, err := upgrader.Upgrade(context.Writer, context.Request, nil)
+	if err != nil {
+		log.Printf("%v", err)
+		return
+	}
+
+	w.appCtx.AddStateListener(func(event application.StateEvent) {
+		ws.WriteJSON(event)
+	})
 }
 
 func isEmailValid(email string) bool {

@@ -66,6 +66,8 @@ func collect(ctx *application.Context, applicationRetries applicationRetry) {
 		cacheTime := value.GetCacheTime()
 		if startTime.After(startTime.Add(cacheTime)) {
 			log.Printf("Image cleaned from system... %v\n", value.GetApplicationInfo().Image)
+
+			// We used nginx image as "TryIt". So, we shouldn't remove the image for performance.
 			if !ctx.AnyValidApplication(value.GetApplicationInfo().Image) && value.GetApplicationInfo().Image != "nginx" {
 				err := value.RemoveFromFileSystem()
 				if err != nil {
