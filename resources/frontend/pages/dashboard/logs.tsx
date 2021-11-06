@@ -3,6 +3,7 @@ import Terminal, {LineType} from "react-terminal-ui";
 import DashboardMain from "../../src/components/DashboardMain/DashboardMain";
 import {AuthUtil} from "../../src/util/AuthUtil";
 import {useApp} from "../../src/hooks/useApp";
+import Head from "next/head";
 
 
 export default function Logs(){
@@ -37,13 +38,18 @@ export default function Logs(){
     }, [ws]);
 
     return (
-        <DashboardMain>
-            {ws != null && (
-                <Terminal name={'Logs'} prompt={'$'} onInput={ terminalInput => {
-                    console.log(terminalInput);
-                    ws.send(terminalInput + "\n")
-                } } lineData={lines} />
-            )}
-        </DashboardMain>
+       <>
+           <Head>
+               <title>Logs</title>
+           </Head>
+           <DashboardMain>
+               {ws != null && (
+                   <Terminal name={'Logs'} prompt={'$'} onInput={ terminalInput => {
+                       console.log(terminalInput);
+                       ws.send(terminalInput + "\n")
+                   } } lineData={lines} />
+               )}
+           </DashboardMain>
+       </>
     )
 }

@@ -3,6 +3,7 @@ import React from "react";
 import {AuthUtil} from "../../src/util/AuthUtil";
 import Terminal, {LineType} from "react-terminal-ui";
 import {useApp} from "../../src/hooks/useApp";
+import Head from "next/head";
 
 export default function TerminalPage() {
 
@@ -86,17 +87,22 @@ export default function TerminalPage() {
 
 
     return (
-        <DashboardMain>
-            {ws != null && (
-                <Terminal name={'Terminal'} prompt={prompt} onInput={ terminalInput => {
-                    setLines(l => [...l, {type: LineType.Input, value: terminalInput}])
-                    ws.send(terminalInput + "\n")
-                    virtualTerminalHandler();
-                    if (terminalInput === 'clear'){
-                        setLines([])
-                    }
-                } } lineData={lines} />
-            )}
-        </DashboardMain>
+       <>
+           <Head>
+               <title>Terminal</title>
+           </Head>
+           <DashboardMain>
+               {ws != null && (
+                   <Terminal name={'Terminal'} prompt={prompt} onInput={ terminalInput => {
+                       setLines(l => [...l, {type: LineType.Input, value: terminalInput}])
+                       ws.send(terminalInput + "\n")
+                       virtualTerminalHandler();
+                       if (terminalInput === 'clear'){
+                           setLines([])
+                       }
+                   } } lineData={lines} />
+               )}
+           </DashboardMain>
+       </>
     );
 }

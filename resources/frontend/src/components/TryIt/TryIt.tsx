@@ -1,7 +1,47 @@
 import React from 'react';
 import {Button, Card, CardActions, CardContent, Container, Typography} from '@mui/material';
+import event from "../../util/Event";
+import {useRouter} from "next/router";
+import {AuthUtil} from "../../util/AuthUtil";
+import http from "../../client/http";
+import {getEnvironment} from "../../../environment/environment";
+import {UserInformation} from "../modals/Login/Login";
 
 export function TryIt() {
+
+    const router = useRouter();
+    const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+    const listen = () => {
+        const info = AuthUtil.getInformation();
+
+        if (info != null){
+            // @ts-ignore
+            if (new Date().getTime() >= new Date(info?.expiresAt).getTime()){
+                http.post(getEnvironment().rootUrl + 'refreshToken', {refresh_token: info.refreshToken})
+                    .then((res) => {
+                        const data = {...res.data} as any;
+                        const newInfo = {...info, refreshToken: data.refresh_token, token: data.token, expiresAt: data.expires_at} as UserInformation;
+                        AuthUtil.removeInformation();
+                        AuthUtil.setInformation(newInfo)
+                        setIsLoggedIn(true);
+                    });
+            } else {
+                setIsLoggedIn(true);
+            }
+        }
+    }
+
+    React.useEffect(() => {
+        listen()
+    })
+
+    React.useEffect(() => {
+        event.on('loggedIn', (from) => {
+            if (from === 'TryIt'){
+                router.push('/dashboard/application?from=TryIt');
+            }
+        })
+    })
 
     return (
         <React.Fragment>
@@ -30,7 +70,13 @@ export function TryIt() {
                         </Typography>
                     </CardContent>
                     <CardActions style={{display: 'flex', justifyContent: 'center'}}>
-                        <Button>Upload</Button>
+                        <Button onClick={() => {
+                            if (isLoggedIn){
+                                router.push('/dashboard/application?from=TryIt')
+                            } else {
+                                event.emit('login', 'TryIt');
+                            }
+                        }}>Upload</Button>
                     </CardActions>
                 </Card>
             </Container>

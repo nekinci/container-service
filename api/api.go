@@ -69,6 +69,14 @@ func ListenAndServe(c *proxy.Proxy) {
 
 func (w *WebApi) appInfo(context *gin.Context) {
 	appName := (context).Param("appName")
+
+	if appName == "" {
+		context.JSON(404, gin.H{
+			"message": "Application name not allowed.",
+		})
+		return
+	}
+
 	app := w.proxy.GetApplication(appName)
 	if app != nil {
 		info := app.GetApplicationInfo()
@@ -94,12 +102,34 @@ func (w *WebApi) appInfo(context *gin.Context) {
 func (w *WebApi) runApplication(context *gin.Context) {
 	file, err := context.FormFile("file")
 	if err != nil {
+		context.JSON(400, gin.H{
+			"code":    400,
+			"message": "File request invalid.",
+		})
 		return
 	}
 	open, err := file.Open()
+
+	if err != nil {
+		context.JSON(400, gin.H{
+			"code":    400,
+			"message": "Unknown error",
+		})
+		return
+	}
+
 	defer open.Close()
 	all, _ := ioutil.ReadAll(open)
-	application, err := specification.NewApplication(all)
+	application, appErr := specification.NewApplication(all)
+
+	if appErr != nil {
+		context.JSON(400, gin.H{
+			"code":    400,
+			"message": "File invalid, upload valid yaml file please.",
+		})
+		return
+	}
+
 	currentUserEmail, _ := context.Get("CurrentUserEmail")
 	application.Email = currentUserEmail.(string)
 	w.proxy.Handle(application)

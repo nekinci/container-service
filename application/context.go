@@ -66,7 +66,7 @@ func (context *Context) KillApplication(application Application) {
 
 	if *id == application.GetApplicationInfo().Id[:6] {
 		context.invalidateApplication(application)
-		application.SetStatus(STOPPED)
+		application.SetStatus(PAUSED)
 	} else {
 		application.SetStatus(ZOMBIE)
 		context.invalidateApplication(application)
@@ -77,7 +77,7 @@ func (context *Context) KillApplication(application Application) {
 }
 
 func (context *Context) ScheduleKill(application *Application) {
-	timer := time.NewTimer(10 * time.Minute)
+	timer := time.NewTimer(1 * time.Minute)
 	done := make(chan bool)
 	go func() {
 		<-timer.C
@@ -97,9 +97,23 @@ func (context Context) addValidApplication(application Application) {
 	context.validApplications[application.GetApplicationInfo().Name] = &application
 }
 
+func (context *Context) InvalidApplications() map[string]*Application {
+	return context.invalidApplications
+}
+
 func (context Context) invalidateApplication(application Application) {
 	context.invalidApplications[application.GetApplicationInfo().Name] = &application
 	delete(context.validApplications, application.GetApplicationInfo().Name)
+}
+
+func (context Context) AnyValidApplication(image string) bool {
+	for _, v := range context.validApplications {
+		value := *v
+		if value.GetApplicationInfo().Image == image {
+			return true
+		}
+	}
+	return false
 }
 
 // NewContext returns new context with embeddedApplications: core.Host

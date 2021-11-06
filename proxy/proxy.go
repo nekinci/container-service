@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nekinci/paas/application"
+	"github.com/nekinci/paas/garbagecollector"
 	"github.com/nekinci/paas/specification"
 	"net/http"
 	"net/http/httputil"
@@ -30,6 +31,7 @@ func NewServer() Proxy {
 
 func (p Proxy) ListenAndServeL7(addr string) error {
 
+	go garbagecollector.ScheduleCollect(&p.ctx)
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		hostName := request.Host
 		println(hostName)

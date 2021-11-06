@@ -6,34 +6,70 @@ import {
     CircularProgress,
     Divider,
     IconButton,
-    Modal,
+    Modal, Snackbar, Tooltip, tooltipClasses, TooltipProps,
     Typography
 } from "@mui/material";
 import React from "react";
-import {Close, RunCircle} from "@mui/icons-material";
+import {Close, InfoOutlined, InfoRounded, RunCircle} from "@mui/icons-material";
 import {styled} from "@mui/styles";
 import http from "../../../client/http";
 import {getEnvironment} from "../../../../environment/environment";
 import {useApp} from "../../../hooks/useApp";
 import {useRouter} from "next/router";
+import GenericSnackbar from "../../Snackbar/GenericSnackbar";
+import event from "../../../util/Event";
 
 
 const Input = styled('input')({
     display: 'none'
 })
 
-export function RunApp({open, setOpen}: any) {
+const HtmlTooltip = styled(({ className, ...props }: TooltipProps) => (
+    <Tooltip {...props} classes={{ popper: className }} />
+))(({ theme }) => ({
+    [`& .${tooltipClasses.tooltip}`]: {
+        backgroundColor: '#556cd6',
+        color: 'white',
+        maxWidth: 220,
+        fontSize: theme.typography.pxToRem(12),
+        border: '1px solid #dadde9',
+    },
+    [`& .${tooltipClasses.arrow}`]: {
+        color: '#556cd6',
+    },
+}));
+
+export function RunApp() {
 
     const [backdropOpen, setBackdropOpen] = React.useState(false);
     const [selectedFile, setSelectedFile] = React.useState(null);
     const [selectedFileName, setSelectedFileName] = React.useState('');
     const [currentApp, isThereAnyApp, setCurrentApp] = useApp();
+    const [open, setOpen] = React.useState(false);
+    const [from, setFrom] = React.useState(null);
     const router = useRouter();
+
+    React.useEffect(() => {
+        event.on('runApp', (fromq: string) => {
+            setOpen(true);
+            setFrom(fromq);
+        })
+    }, []);
+
+    React.useEffect(async () => {
+        if (from === 'TryIt' ){
+            let response = await fetch('/example.yml');
+            let data = await response.blob();
+            let file = new File([data], "example.yml");
+            setSelectedFile(file);
+        }
+    }, [from]);
 
     const onClose = () => {
         setSelectedFileName('');
         setSelectedFile(null);
-        setOpen(false)
+        setOpen(false);
+        setFrom(null);
     }
 
     const downloadTemplate = () => {
@@ -49,6 +85,10 @@ export function RunApp({open, setOpen}: any) {
     }
 
     const apply = () => {
+        if (selectedFile === null){
+            event.emit('snackbar', 'Please select a valid file.', 'warning')
+            return
+        }
         const formData = new FormData();
         formData.append('file', selectedFile);
         setBackdropOpen(true);
@@ -59,9 +99,10 @@ export function RunApp({open, setOpen}: any) {
             setCurrentApp(res.data.appName);
             onClose();
             router.push('/dashboard/application');
-        }, () => {
+        }, (err) => {
             setBackdropOpen(false);
             setOpen(true);
+            event.emit('snackbar', err.response.data.message)
         });
     }
 
@@ -70,7 +111,6 @@ export function RunApp({open, setOpen}: any) {
             <Backdrop open={backdropOpen} style={{color: 'white'}}>
                 <CircularProgress color="inherit" />
             </Backdrop>
-
             <Modal open={open} onClose={onClose}>
                 <div style={{display: 'flex', justifyContent: 'center'}}>
                     <Card style={{'minWidth': '550px', margin: '60px', position: 'relative'}}>
@@ -91,7 +131,7 @@ export function RunApp({open, setOpen}: any) {
                                    </Button>
                                    <div>
                                        <label htmlFor={'upload-yml'}>
-                                           <Input onChange={chooseFile} id={'upload-yml'} type={'file'} />
+                                           <Input accept={'.yml, .yaml'} onChange={chooseFile} id={'upload-yml'} type={'file'} />
                                            <Button variant={'contained'} component={'span'}>Choose file</Button>
                                        </label>
                                    </div>
@@ -100,7 +140,23 @@ export function RunApp({open, setOpen}: any) {
                            </div>
                         </CardContent>
                         <CardActions style={{display: 'flex', justifyContent: 'center'}}>
-                            <Button onClick={apply} variant={'outlined'} startIcon={<RunCircle />}>Apply</Button>
+                            {from === 'TryIt' && (
+                                <HtmlTooltip arrow={true} open={true} placement={'top'}
+                                             title={
+                                                 <React.Fragment>
+                                                    <div style={{display: 'flex', 'gap': '5px', alignItems: 'center'}}>
+                                                        <InfoOutlined />
+                                                        <Typography fontWeight={'bold'} variant={'subtitle1'} fontSize={'12px'} color="inherit">Click apply for run application</Typography>
+                                                    </div>
+                                                 </React.Fragment>
+                                             }
+                                >
+                                    <Button disabled={selectedFile === null} onClick={apply} variant={'outlined'} startIcon={<RunCircle />}>Apply</Button>
+                                </HtmlTooltip>
+                            )}
+                            {from !== 'TryIt' && (
+                                    <Button disabled={selectedFile === null} onClick={apply} variant={'outlined'} startIcon={<RunCircle />}>Apply</Button>
+                            )}
                         </CardActions>
                     </Card>
                 </div>

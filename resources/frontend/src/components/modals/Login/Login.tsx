@@ -14,6 +14,7 @@ import React from "react";
 import http from "../../../client/http";
 import {getEnvironment} from "../../../../environment/environment";
 import {AuthUtil} from "../../../util/AuthUtil";
+import event from "../../../util/Event";
 
 export interface LoginModal {
     open: boolean;
@@ -27,14 +28,21 @@ export interface UserInformation {
     refreshToken?: string;
 }
 
-export function Login({open, setOpen}: LoginModal){
+export function Login(){
 
     const [email, setEmail] = React.useState('')
     const [password, setPassword] = React.useState('')
-    const [snackbarOpen, setSnackbarOpen] = React.useState(false)
-    const [snackbarContent, setSnackbarContent] = React.useState(null)
     const [backdropOpen, setBackdropOpen] = React.useState(false);
-
+    const [from, setFrom] = React.useState('header');
+    const [open, setOpen] = React.useState(false);
+    
+    React.useEffect(() => {
+        event.on('login', (fromq: string) => {
+            setFrom(fromq);
+            setOpen(true);
+        })
+    }, []);
+    
     React.useEffect(() => {
         setEmail('')
         setPassword('')
@@ -50,13 +58,10 @@ export function Login({open, setOpen}: LoginModal){
                 AuthUtil.setInformation(info);
                 setOpen(false)
                 setBackdropOpen(false);
+                event.emit('loggedIn', from)
             }, (err) => {
                 setBackdropOpen(false)
-                setSnackbarOpen(true)
-                // @ts-ignore
-                setSnackbarContent(<Alert severity={'error'} onClose={() => setSnackbarOpen(false)}>
-                    {err.response.data}
-                </Alert>)
+                event.emit('snackbar', err.response.data);
             });
     }
 
@@ -68,11 +73,7 @@ export function Login({open, setOpen}: LoginModal){
                 onLogin();
             }, err => {
                 setBackdropOpen(false);
-                setSnackbarOpen(true)
-                // @ts-ignore
-                setSnackbarContent(<Alert severity={'error'} onClose={() => setSnackbarOpen(false)}>
-                    {err.response.data}
-                </Alert>)
+                event.emit('snackbar', err.response.data, 'error');
             });
     }
 
@@ -87,14 +88,6 @@ export function Login({open, setOpen}: LoginModal){
            <Backdrop style={{color: 'white'}} open={backdropOpen}>
                <CircularProgress color="inherit" />
            </Backdrop>
-           <Snackbar
-               anchorOrigin={{vertical: 'top', horizontal: 'right'}}
-               open={snackbarOpen}
-               autoHideDuration={getEnvironment().snackbarHideDuration}
-               onClose={() => setSnackbarOpen(false)}
-           >
-               {snackbarContent}
-           </Snackbar>
 
            <Modal open={open} onClose={onClose}>
                <div style={{display: 'flex', justifyContent: 'center'}}>
@@ -107,7 +100,11 @@ export function Login({open, setOpen}: LoginModal){
                                <Close/>
                            </IconButton>
                            <Divider style={{marginTop: '8px'}} />
-
+                           {from === 'TryIt' && (
+                               <Alert  severity="error">
+                                   <Typography variant={'body2'}>We know this is annoying but only 30 seconds.</Typography>
+                               </Alert>
+                           )}
                            <div style={{display: 'flex', flexDirection: 'column', padding: '45px 15px 20px 15px', gap: '15px'}}>
                                <TextField type={'email'} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete={'off'} label={'E-mail'}/>
                                <TextField value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={'off'} type={'password'} label={'Password'}/>

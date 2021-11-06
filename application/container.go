@@ -38,13 +38,13 @@ func (container *Container) Run() error {
 
 	if err != nil {
 		log.Printf("An error occurred while creating container: %v", err)
-		container.addNewLog(FormatString("An error occurred while creating container: %v", err).ToInfoLog())
+		container.AddNewLog(FormatString("An error occurred while creating container: %v", err).ToInfoLog())
 		return err
 	}
 
 	container.StartTime = time.Now()
 	containerId := string(executedContainer)
-	container.addNewLog(FormatString("Container created with id: %s", containerId).ToInfoLog())
+	container.AddNewLog(FormatString("Container created with id: %s", containerId).ToInfoLog())
 	container.Id = containerId
 	return nil
 }
@@ -55,29 +55,32 @@ func (container *Container) Kill() (*string, error) {
 	out, err := cmd.Output()
 
 	if err != nil {
-		container.addNewLog(FormatString("An error occurred while killing container: %v", err).ToErrorLog())
+		container.AddNewLog(FormatString("An error occurred while killing container: %v", err).ToErrorLog())
 		return nil, err
 	}
 
 	res := container.Id[:6]
 	if string(out[:6]) == container.Id[:6] {
-		container.addNewLog(FormatString("Container killed as expected!").ToInfoLog())
+		container.AddNewLog(FormatString("Container killed as expected!").ToInfoLog())
 		return &res, nil
 	}
 
-	container.addNewLog(FormatString("An error occurred while killing container: %v", err).ToErrorLog())
+	container.AddNewLog(FormatString("An error occurred while killing container: %v", err).ToErrorLog())
 	return &res, err
 }
 
 func (container *Container) RemoveFromFileSystem() error {
 	var err error = nil
-	cmd := exec.Command("docker", "rmi", "-f", container.Specification.Name)
+	cmd := exec.Command("docker", "rmi", "-f", container.Specification.Image)
 
 	errorBuff := make([]byte, 512)
 
 	done := make(chan bool)
 	go func() {
-		cmd.Stderr.Write(errorBuff)
+		_, err = cmd.Stderr.Write(errorBuff)
+		if err != nil {
+			log.Printf("%v", err)
+		}
 		done <- true
 	}()
 
@@ -172,7 +175,7 @@ func (container *Container) LogStream(handler LogHandler) {
 	container.LogHandlers = append(container.LogHandlers, handler)
 }
 
-func (container *Container) addNewLog(log Log) {
+func (container *Container) AddNewLog(log Log) {
 	container.Logs = append(container.Logs, log)
 	for _, handler := range container.LogHandlers {
 		handler(log)
@@ -192,7 +195,7 @@ func (container *Container) ListenLogs() {
 		scanner := bufio.NewScanner(r)
 		for scanner.Scan() {
 			log := scanner.Text()
-			container.addNewLog(FormatString("%v", log).ToInfoLog())
+			container.AddNewLog(FormatString("%v", log).ToInfoLog())
 		}
 	}()
 
@@ -205,35 +208,35 @@ func (container *Container) ListenLogs() {
 func (container *Container) OpenTerminal() (*ProcessPipe, func() error, error) {
 	cmd := exec.Command("docker", "exec", "-i", container.Id[:6], "/bin/bash")
 
-	container.addNewLog(FormatString("Terminal session created.\n").ToInfoLog())
+	container.AddNewLog(FormatString("Terminal session created.\n").ToInfoLog())
 
 	stdin, stdinErr := cmd.StdinPipe()
 	if stdinErr != nil {
-		container.addNewLog(FormatString("%v", stdinErr).ToErrorLog())
+		container.AddNewLog(FormatString("%v", stdinErr).ToErrorLog())
 		return nil, nil, fmt.Errorf("Stdin pipe err: %v\n", stdinErr)
 	}
 
 	stdout, stdoutErr := cmd.StdoutPipe()
 	if stdoutErr != nil {
-		container.addNewLog(FormatString("%v", stdoutErr).ToErrorLog())
+		container.AddNewLog(FormatString("%v", stdoutErr).ToErrorLog())
 		return nil, nil, fmt.Errorf("Stdout pipe err: %v\n", stdoutErr)
 	}
 
 	stderr, stderrPipe := cmd.StderrPipe()
 	if stderrPipe != nil {
-		container.addNewLog(FormatString("%v", stderrPipe).ToErrorLog())
+		container.AddNewLog(FormatString("%v", stderrPipe).ToErrorLog())
 		return nil, nil, fmt.Errorf("Stderr pipe err: %v\n", stderrPipe)
 	}
 
 	err := cmd.Start()
 	if err != nil {
-		container.addNewLog(FormatString("Terminal not opening, %v", err).ToErrorLog())
+		container.AddNewLog(FormatString("Terminal not opening, %v", err).ToErrorLog())
 	}
 
 	go func() {
 		waitErr := cmd.Wait()
 		if waitErr != nil {
-			container.addNewLog(FormatString("Process not forked as expected! %v", waitErr).ToErrorLog())
+			container.AddNewLog(FormatString("Process not forked as expected! %v", waitErr).ToErrorLog())
 		}
 	}()
 
@@ -242,7 +245,7 @@ func (container *Container) OpenTerminal() (*ProcessPipe, func() error, error) {
 		log.Println("Process killing...")
 		err := cmd.Process.Kill()
 		if err != nil {
-			container.addNewLog(FormatString("An error occurred while killing terminal process, %v", err).ToErrorLog())
+			container.AddNewLog(FormatString("An error occurred while killing terminal process, %v", err).ToErrorLog())
 		}
 		return err
 	}
@@ -277,6 +280,10 @@ func GetBindingAddress(container Container) (string, *int32) {
 
 func (container *Container) GetProtocol() string {
 	return "tcp"
+}
+
+func (container *Container) GetCacheTime() time.Duration {
+	return container.CacheTime
 }
 
 func NewContainer(specification2 specification.Specification) *Container {

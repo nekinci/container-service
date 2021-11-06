@@ -3,6 +3,7 @@ package application
 import (
 	"github.com/nekinci/paas/specification"
 	"io"
+	"time"
 )
 
 type Info struct {
@@ -81,8 +82,8 @@ type Application interface {
 	// LogStream streams log when its emitted.
 	LogStream(handlerFunc LogHandler)
 
-	// addNewLog adds new log to application logs.
-	addNewLog(log Log)
+	// AddNewLog adds new log to application logs.
+	AddNewLog(log Log)
 
 	// ListenLogs listens logs from app inside container.
 	ListenLogs()
@@ -90,6 +91,9 @@ type Application interface {
 	// OpenTerminal open connection to docker container shell.
 	// It returns a writer and reader.
 	OpenTerminal() (processPipe *ProcessPipe, cancel func() error, err error)
+
+	// GetCacheTime returns cache time of application.
+	GetCacheTime() time.Duration
 }
 
 // NewApplication returns new application by given specification.
