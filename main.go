@@ -20,7 +20,7 @@ func main() {
 	s := proxy.NewServer(context)
 	channel := make(chan bool)
 	go func() {
-		s.ListenAndServeL7("127.0.0.1:7888")
+		s.ListenAndServeL7("0.0.0.0:80")
 		channel <- true
 	}()
 

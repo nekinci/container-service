@@ -8,9 +8,9 @@ export class EnvironmentDev implements Environment{
 
     constructor() {
         this.env = 'DEV';
-        this.rootUrl = 'http://api.localhost:7888/';
+        this.rootUrl = 'http://api.localhost/';
         this.snackbarHideDuration = 5000;
-        this.wsUrl = "ws://api.localhost:7888/"
+        this.wsUrl = "ws://api.localhost/"
     }
 
 
