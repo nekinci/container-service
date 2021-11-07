@@ -5,6 +5,8 @@ import (
 	"github.com/nekinci/paas/api"
 	"github.com/nekinci/paas/application"
 	"github.com/nekinci/paas/proxy"
+	"github.com/nekinci/paas/specification"
+	"io/ioutil"
 	"os"
 )
 
@@ -21,6 +23,19 @@ func main() {
 		s.ListenAndServeL7("127.0.0.1:7888")
 		channel <- true
 	}()
+
+	stream, err := ioutil.ReadFile("example.yml")
+	if err != nil {
+		panic(err)
+	}
+
+	tryItApp, specErr := specification.NewApplication(stream)
+	tryItApp.Email = "superuser@containerdemo.live"
+	if specErr != nil {
+		panic(err)
+	}
+
+	context.Handle(tryItApp, false)
 
 	go api.ListenAndServe(context)
 	<-channel
