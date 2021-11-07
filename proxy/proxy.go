@@ -45,7 +45,7 @@ func (p Proxy) ListenAndServeL7(addr string) error {
 		serveProxy(fmt.Sprintf("http://0.0.0.0:%s", app.GetPort()), writer, request)
 	})
 
-	fmt.Printf("%v", http.ListenAndServeTLS(addr, "server.crt", "server.key", nil))
+	fmt.Printf("%v", http.ListenAndServe(addr, nil))
 	return nil
 }
 
