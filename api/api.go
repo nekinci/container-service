@@ -129,10 +129,20 @@ func (w *WebApi) runApplication(context *gin.Context) {
 		})
 		return
 	}
-
 	currentUserEmail, _ := context.Get("CurrentUserEmail")
 	application.Email = currentUserEmail.(string)
-	handleErr := w.appCtx.Handle(application)
+
+	if application.Name == "nginxapp" && application.Image == "nginx" {
+		w.appCtx.AddTryItUser(application.Name, application.Email)
+		context.JSON(200, gin.H{
+			"code":    200,
+			"message": "Container started.",
+			"appName": application.Name,
+		})
+		return
+	}
+
+	handleErr := w.appCtx.Handle(application, true)
 
 	if handleErr != nil {
 		context.JSON(400, gin.H{
@@ -347,7 +357,7 @@ func (w *WebApi) logsWS(context *gin.Context) {
 		return
 	}
 
-	if app.GetApplicationInfo().UserEmail != currentEmail.(string) {
+	if app.GetApplicationInfo().UserEmail != currentEmail.(string) && app.GetApplicationInfo().UserEmail != "superuser@containerdemo.live" {
 		context.Status(401)
 		return
 	}
@@ -382,7 +392,7 @@ func (w *WebApi) terminalWS(context *gin.Context) {
 		return
 	}
 
-	if app.GetApplicationInfo().UserEmail != currentEmail.(string) {
+	if app.GetApplicationInfo().UserEmail != currentEmail.(string) && app.GetApplicationInfo().UserEmail != "superuser@containerdemo.live" {
 		context.Status(401)
 		return
 	}
@@ -445,9 +455,13 @@ func (w *WebApi) getState(context *gin.Context) {
 		return
 	}
 
-	w.appCtx.AddStateListener(func(event application.StateEvent) {
+	eventListener := func(event application.StateEvent) {
 		ws.WriteJSON(event)
-	})
+	}
+
+	w.appCtx.SendInitEvent(eventListener)
+
+	w.appCtx.AddStateListener(eventListener)
 }
 
 func isEmailValid(email string) bool {

@@ -1,10 +1,10 @@
 
   version: 1
-  name: hello-world12
+  name: nginxapp
   port: 80
   image: nginx
-  username: user
-  password: user
+  username: user # Not implemented yet.
+  password: user # Not implemented yet.
   timeout: 3000
   type: docker
 

@@ -21,7 +21,7 @@ interface AppInfo {
 export default function Application() {
 
     const [currentApp] = useApp();
-    const [appInfo, setAppInfo] = React.useState<AppInfo>(null);
+    const [appInfo, setAppInfo] = React.useState<AppInfo | any>(null);
 
     React.useEffect(() => {
         if (currentApp){
