@@ -25,7 +25,7 @@ type Container struct {
 	BindingPort   *int32
 	IPV4          string
 	Logs          []Log
-	IsRemovable   bool
+	Removable     bool
 	CacheTime     time.Duration // The CacheTime describes remove time of application after expiry container.
 	LogHandlers   []LogHandler
 }
@@ -286,7 +286,11 @@ func (container *Container) GetCacheTime() time.Duration {
 	return container.CacheTime
 }
 
-func NewContainer(specification2 specification.Specification) *Container {
+func (container *Container) IsRemovable() bool {
+	return container.Removable
+}
+
+func NewContainer(specification2 specification.Specification, removable bool) *Container {
 	return &Container{
 		Id:            "",
 		Specification: &specification2,
@@ -295,7 +299,7 @@ func NewContainer(specification2 specification.Specification) *Container {
 		BindingPort:   nil,
 		IPV4:          "",
 		Logs:          []Log{},
-		IsRemovable:   true,
+		Removable:     removable,
 		CacheTime:     time.Minute * 30,
 	}
 }

@@ -38,6 +38,10 @@ func collect(ctx *application.Context, applicationRetries applicationRetry) {
 		//	continue
 		//}
 
+		if !value.IsRemovable() {
+			log.Printf("%v Application should not remove. Skipping...\n", value.GetSpecification().Name)
+			continue
+		}
 		if value.GetStatus() == application.RUNNING {
 			continue
 		}
@@ -68,7 +72,7 @@ func collect(ctx *application.Context, applicationRetries applicationRetry) {
 			log.Printf("Image cleaned from system... %v\n", value.GetApplicationInfo().Image)
 
 			// We used nginx image as "TryIt". So, we shouldn't remove the image for performance.
-			if !ctx.AnyValidApplication(value.GetApplicationInfo().Image) && value.GetApplicationInfo().Image != "nginx" {
+			if !ctx.AnyValidApplicationByImage(value.GetApplicationInfo().Image) && value.GetApplicationInfo().Image != "nginx" {
 				err := value.RemoveFromFileSystem()
 				if err != nil {
 					value.AddNewLog(application.FormatString("Image/File not removed: %v", err).ToRemoveLog())

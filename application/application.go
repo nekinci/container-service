@@ -94,17 +94,20 @@ type Application interface {
 
 	// GetCacheTime returns cache time of application.
 	GetCacheTime() time.Duration
+
+	// IsRemovable returns application's removable status.
+	IsRemovable() bool
 }
 
 // NewApplication returns new application by given specification.
-func NewApplication(spec specification.Specification) Application {
+func NewApplication(spec specification.Specification, removable bool) Application {
 
 	if isReservedName(spec.Name) {
 		return nil
 	}
 
 	if spec.Type == "docker" {
-		return NewContainer(spec)
+		return NewContainer(spec, removable)
 	}
 	return nil
 }
