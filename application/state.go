@@ -7,6 +7,7 @@ type StateType string
 const (
 	VALIDATE   StateType = "VALIDATE"
 	INVALIDATE StateType = "INVALIDATE"
+	INIT       StateType = "INIT"
 )
 
 type StateEvent struct {
@@ -18,6 +19,14 @@ type StateEvent struct {
 }
 
 type StateListener func(StateEvent)
+
+func (context *Context) SendInitEvent(sl StateListener) {
+	context.appMu.Lock()
+	defer context.appMu.Unlock()
+	keyCount := getMapSize(context.validApplications)
+	sl(NewStateEvent(INIT, "Init", keyCount))
+
+}
 
 func (context *Context) AddStateListener(listener StateListener) {
 	context.stateMu.Lock()
