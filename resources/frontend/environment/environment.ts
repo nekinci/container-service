@@ -1,4 +1,5 @@
 import {EnvironmentDev} from "./environment-dev";
+import {EnvironmentProd} from "./environment-prod";
 
 export interface Environment {
     rootUrl: string;
@@ -8,5 +9,5 @@ export interface Environment {
 }
 
 export function getEnvironment(): Environment{
-    return new EnvironmentDev();
+    return new EnvironmentProd();
 }
