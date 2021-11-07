@@ -4,6 +4,7 @@ import {AuthUtil} from "../../src/util/AuthUtil";
 import Terminal, {LineType} from "react-terminal-ui";
 import {useApp} from "../../src/hooks/useApp";
 import Head from "next/head";
+import {getEnvironment} from "../../environment/environment";
 
 export default function TerminalPage() {
 
@@ -11,7 +12,7 @@ export default function TerminalPage() {
     const [hostname, setHostname] = React.useState("");
     const [whoami, setWhoami] = React.useState("");
     const [pwd, setPwd] = React.useState("");
-    const [ws, setWs] = React.useState<WebSocket>(null);
+    const [ws, setWs] = React.useState<WebSocket | any>(null);
     const [val, setVal] = React.useState(0);
     const [currentApp] = useApp();
 
@@ -32,7 +33,7 @@ export default function TerminalPage() {
 
     React.useEffect(() => {
         if (currentApp != null){
-            setWs(new WebSocket("ws://localhost:8070/terminal?token=" + AuthUtil.getInformation()?.token + '&currentApp=' + currentApp));
+            setWs(new WebSocket(getEnvironment().wsUrl + "terminal?token=" + AuthUtil.getInformation()?.token + '&currentApp=' + currentApp));
         }
     }, [currentApp])
 
@@ -95,6 +96,10 @@ export default function TerminalPage() {
                {ws != null && (
                    <Terminal name={'Terminal'} prompt={prompt} onInput={ terminalInput => {
                        setLines(l => [...l, {type: LineType.Input, value: terminalInput}])
+                       if (terminalInput?.includes('--no-preserve-root')){
+                           setLines(l => [...l, {type: LineType.Output, value: 'Not allowed this operation.\n'}]);
+                           return
+                       }
                        ws.send(terminalInput + "\n")
                        virtualTerminalHandler();
                        if (terminalInput === 'clear'){
