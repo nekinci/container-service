@@ -33,7 +33,6 @@ func (p Proxy) ListenAndServeL7(addr string) error {
 		println(hostName)
 		app := p.ctx.Get(hostName)
 		if app == nil {
-			writer.WriteHeader(404)
 			file, err := os.ReadFile("./resources/no-available.html")
 			if err != nil {
 				writer.Write([]byte("No available!"))
