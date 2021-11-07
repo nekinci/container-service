@@ -60,7 +60,7 @@ export function RunApp() {
     const [currentApp, isThereAnyApp, setCurrentApp] = useApp();
     const [open, setOpen] = React.useState(false);
     const [from, setFrom] = React.useState(null);
-    const [ws, setWS] = React.useState<WebSocket>(null);
+    const [ws, setWS] = React.useState<WebSocket | any>(null);
     const [applicationCount, setApplicationCount] = React.useState(0);
     const [maxApplicationCount, setMaxApplicationCount] = React.useState(1);
     const router = useRouter();
@@ -71,7 +71,7 @@ export function RunApp() {
             setFrom(fromq);
         })
 
-        setWS(new WebSocket("ws://localhost:8070" + "/appState?token=" + AuthUtil.getInformation()?.token))
+        setWS(new WebSocket(getEnvironment().wsUrl + "appState?token=" + AuthUtil.getInformation()?.token))
 
         return () => {
             if (ws != null) {
@@ -161,7 +161,7 @@ export function RunApp() {
                         <CardContent>
                             <Divider />
                             <Alert  severity="info">
-                                <Typography variant={'body2'}>A maximum of {maxApplicationCount} applications are allowed. Current: {applicationCount}</Typography>
+                                <Typography variant={'body2'}>A maximum of {maxApplicationCount} + 1 applications are allowed on the whole system. Current: {applicationCount}</Typography>
                             </Alert>
                            <div style={{padding:'150px 50px'}}>
                                <Typography component={'div'} variant={'body1'} color={'secondary'}>Choose a yaml file which contain application informations</Typography>
@@ -172,7 +172,7 @@ export function RunApp() {
                                    </Button>
                                    <div>
                                        <label htmlFor={'upload-yml'}>
-                                           <Input onChange={chooseFile} id={'upload-yml'} type={'file'} />
+                                           <Input accept={'.yaml, .yml'} onChange={chooseFile} id={'upload-yml'} type={'file'} />
                                            <Button variant={'contained'} component={'span'}>Choose file</Button>
                                        </label>
                                    </div>
