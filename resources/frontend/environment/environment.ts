@@ -4,6 +4,7 @@ export interface Environment {
     rootUrl: string;
     env: string;
     snackbarHideDuration: number;
+    wsUrl: string;
 }
 
 export function getEnvironment(): Environment{
