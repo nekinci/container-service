@@ -7,7 +7,14 @@ import (
 func WildcardStrategy(key string, ctx Context) Host {
 
 	splittedKey := strings.Split(key, ".")
-	newKey := splittedKey[0]
+	length := len(splittedKey)
+
+	var newKey string
+	if length <= 1 {
+		newKey = ""
+	} else {
+		newKey = splittedKey[0]
+	}
 
 	if isReservedName(newKey) {
 		return ctx.embeddedApplications[newKey]
