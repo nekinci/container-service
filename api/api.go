@@ -28,7 +28,7 @@ var (
 		WriteBufferSize: 1024,
 	}
 	allowedEndpoints = []string{"/register", "/login", "/refreshToken", "/logs", "/terminal", "/appState"}
-	host             = "localhost:80"
+	host             = "containerdemo.live"
 )
 
 type WebApi struct {

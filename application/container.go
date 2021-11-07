@@ -269,7 +269,8 @@ func GetBindingAddress(container Container) (string, *int32) {
 	}
 
 	addr := strings.Split(strings.TrimSpace(string(output)), ":") // Only for ipv4
-	port, err := strconv.Atoi(addr[1])
+	pp := strings.Replace(addr[1], "\n", "", 1)
+	port, err := strconv.Atoi(pp)
 	if err != nil {
 		panic(err)
 	}
