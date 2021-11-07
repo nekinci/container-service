@@ -8,9 +8,9 @@ export class EnvironmentProd implements Environment{
 
     constructor() {
         this.env = 'PROD';
-        this.rootUrl = 'http://api.containerdemo.live/';
+        this.rootUrl = 'https://api.containerdemo.live/';
         this.snackbarHideDuration = 5000;
-        this.wsUrl = "ws://api.containerdemo.live/"
+        this.wsUrl = "wss://api.containerdemo.live/"
     }
 
 
