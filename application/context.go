@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	applicationLimit    = 2
-	applicationLifeTime = 1
+	applicationLimit    = 7
+	applicationLifeTime = 3
 )
 
 // InMemory context.
