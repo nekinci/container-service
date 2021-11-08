@@ -61,7 +61,7 @@ func (p Proxy) ListenAndServeL7(addr string) error {
 			http.MethodDelete,
 			http.MethodOptions,
 		},
-		AllowedHeaders:   []string{"*"},
+		AllowedHeaders:   []string{"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With"},
 		AllowCredentials: true,
 		Debug:            true,
 	}).Handler(mux)
