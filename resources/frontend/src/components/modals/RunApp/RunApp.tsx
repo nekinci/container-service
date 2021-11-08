@@ -66,16 +66,24 @@ export function RunApp() {
     const router = useRouter();
 
     React.useEffect(() => {
+        if (ws == null){
+            if (AuthUtil.getInformation()?.token != null){
+                setWS(new WebSocket(getEnvironment().wsUrl + "appState?token=" + AuthUtil.getInformation()?.token))
+            }
+        }
+    })
+
+    React.useEffect(() => {
         event.on('runApp', (fromq: string) => {
             setOpen(true);
             setFrom(fromq);
         })
 
-        setWS(new WebSocket(getEnvironment().wsUrl + "appState?token=" + AuthUtil.getInformation()?.token))
 
         return () => {
             if (ws != null) {
                 ws.close();
+                setWS(null);
             }
         }
     }, []);

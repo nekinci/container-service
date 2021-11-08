@@ -57,7 +57,7 @@ export function TryIt() {
                             version: 1
                         </Typography>
                         <Typography>
-                            name: example-container
+                            name: nginxapp
                         </Typography>
                         <Typography>
                             image: nginx

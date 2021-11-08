@@ -87,7 +87,7 @@ export function HowItWorks(){
 
                 <Feature
                     title={'Demo'}
-                    subtitle={"You're ready to demo."}
+                    subtitle={"You're ready to demo for 3 minutes."}
                     backgroundColor={'#513841'}
                     sequence={'05'}
                     iconComponent={'Demo'}
