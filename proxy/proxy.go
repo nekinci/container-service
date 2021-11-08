@@ -34,15 +34,7 @@ func (p Proxy) ListenAndServeL7(addr string) error {
 		hostName := request.Host
 		println(hostName + request.URL.Path)
 		app := p.ctx.Get(hostName)
-		writer.Header().Set("Access-Control-Allow-Origin", "*")
-		writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
 
-		if request.Method == "OPTIONS" {
-			writer.WriteHeader(204)
-			return
-		}
 		if app == nil {
 			file, err := os.ReadFile("./resources/no-available.html")
 			if err != nil {
@@ -59,6 +51,17 @@ func (p Proxy) ListenAndServeL7(addr string) error {
 			println("Allow origin....")
 			return true
 		},
+		AllowedMethods: []string{
+			http.MethodHead,
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+			http.MethodOptions,
+		},
+		AllowCredentials: true,
+		Debug:            true,
 	}).Handler(mux)
 	fmt.Printf("%v", http.ListenAndServe(addr, handler))
 	return nil
