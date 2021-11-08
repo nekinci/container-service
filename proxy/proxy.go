@@ -52,7 +52,6 @@ func (p Proxy) ListenAndServeL7(addr string) error {
 			println("Allow origin....")
 			return true
 		},
-		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{
 			http.MethodHead,
 			http.MethodGet,
