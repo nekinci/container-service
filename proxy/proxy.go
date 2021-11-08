@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/nekinci/paas/application"
 	"github.com/nekinci/paas/garbagecollector"
-	"github.com/rs/cors"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -29,8 +28,7 @@ func NewServer(ctx *application.Context) Proxy {
 func (p Proxy) ListenAndServeL7(addr string) error {
 
 	go garbagecollector.ScheduleCollect(p.ctx)
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		hostName := request.Host
 		println(hostName + request.URL.Path)
 		app := p.ctx.Get(hostName)
@@ -46,27 +44,8 @@ func (p Proxy) ListenAndServeL7(addr string) error {
 		}
 		serveProxy(fmt.Sprintf("http://0.0.0.0:%s", app.GetPort()), writer, request)
 	})
-	cors.AllowAll()
-	handler := cors.New(cors.Options{
-		AllowedOrigins: []string{"api.containerdemo.live", "https://api.containerdemo.live"},
-		AllowOriginFunc: func(origin string) bool {
-			println("Allow origin....")
-			return true
-		},
-		AllowedMethods: []string{
-			http.MethodHead,
-			http.MethodGet,
-			http.MethodPost,
-			http.MethodPut,
-			http.MethodPatch,
-			http.MethodDelete,
-			http.MethodOptions,
-		},
-		AllowedHeaders:   []string{"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With"},
-		AllowCredentials: true,
-		Debug:            true,
-	}).Handler(mux)
-	fmt.Printf("%v", http.ListenAndServe(addr, handler))
+
+	fmt.Printf("%v", http.ListenAndServe(addr, nil))
 	return nil
 }
 
