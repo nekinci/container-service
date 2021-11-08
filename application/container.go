@@ -206,7 +206,7 @@ func (container *Container) ListenLogs() {
 }
 
 func (container *Container) OpenTerminal() (*ProcessPipe, func() error, error) {
-	cmd := exec.Command("docker", "exec", "-i", container.Id[:6], "/bin/bash")
+	cmd := exec.Command("docker", "exec", "-i", container.Id[:6], "/bin/sh")
 
 	container.AddNewLog(FormatString("Terminal session created.\n").ToInfoLog())
 
