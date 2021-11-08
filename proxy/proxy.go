@@ -46,11 +46,13 @@ func (p Proxy) ListenAndServeL7(addr string) error {
 		}
 		serveProxy(fmt.Sprintf("http://0.0.0.0:%s", app.GetPort()), writer, request)
 	})
+	cors.AllowAll()
 	handler := cors.New(cors.Options{
 		AllowOriginFunc: func(origin string) bool {
 			println("Allow origin....")
 			return true
 		},
+		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{
 			http.MethodHead,
 			http.MethodGet,
@@ -60,6 +62,7 @@ func (p Proxy) ListenAndServeL7(addr string) error {
 			http.MethodDelete,
 			http.MethodOptions,
 		},
+		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 		Debug:            true,
 	}).Handler(mux)
