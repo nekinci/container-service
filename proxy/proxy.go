@@ -48,7 +48,7 @@ func (p Proxy) ListenAndServeL7(addr string) error {
 	})
 	cors.AllowAll()
 	handler := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},
+		AllowedOrigins: []string{"api.containerdemo.live", "https://api.containerdemo.live"},
 		AllowOriginFunc: func(origin string) bool {
 			println("Allow origin....")
 			return true
