@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/nekinci/paas/application"
 	"github.com/nekinci/paas/garbagecollector"
+	"github.com/rs/cors"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -28,10 +29,20 @@ func NewServer(ctx *application.Context) Proxy {
 func (p Proxy) ListenAndServeL7(addr string) error {
 
 	go garbagecollector.ScheduleCollect(p.ctx)
-	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		hostName := request.Host
-		println(hostName)
+		println(hostName + request.URL.Path)
 		app := p.ctx.Get(hostName)
+		writer.Header().Set("Access-Control-Allow-Origin", "*")
+		writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+
+		if request.Method == "OPTIONS" {
+			writer.WriteHeader(204)
+			return
+		}
 		if app == nil {
 			file, err := os.ReadFile("./resources/no-available.html")
 			if err != nil {
@@ -43,8 +54,21 @@ func (p Proxy) ListenAndServeL7(addr string) error {
 		}
 		serveProxy(fmt.Sprintf("http://0.0.0.0:%s", app.GetPort()), writer, request)
 	})
-
-	fmt.Printf("%v", http.ListenAndServe(addr, nil))
+	handler := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{
+			http.MethodHead,
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+			http.MethodOptions,
+		},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+	}).Handler(mux)
+	fmt.Printf("%v", http.ListenAndServe(addr, handler))
 	return nil
 }
 
