@@ -44,7 +44,7 @@ func ListenAndServe(c *application.Context) {
 		r:      r,
 	}
 
-	//	r.Use(CORSMiddleware())
+	r.Use(CORSMiddleware())
 	r.Use(wsMiddleware)
 	r.Use(authMiddleware)
 
