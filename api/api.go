@@ -17,10 +17,19 @@ import (
 	"log"
 	"net/http"
 	"net/mail"
+	"os"
 	"strings"
 	"sync"
 	"time"
 )
+
+func getEnv(key, fallback string) string {
+	env := os.Getenv(key)
+	if len(env) == 0 {
+		return fallback
+	}
+	return env
+}
 
 var (
 	upgrader = websocket.Upgrader{
@@ -28,7 +37,8 @@ var (
 		WriteBufferSize: 1024,
 	}
 	allowedEndpoints = []string{"/register", "/login", "/refreshToken", "/logs", "/terminal", "/appState"}
-	host             = "containerdemo.live"
+	host             = getEnv("DOMAIN", "localhost")
+	scheme           = getEnv("SCHEME", "http")
 )
 
 type WebApi struct {
@@ -37,7 +47,7 @@ type WebApi struct {
 }
 
 func ListenAndServe(c *application.Context) {
-	addr := "127.0.0.1:8070"
+	addr := "0.0.0.0:8070"
 	r := gin.Default()
 	w := WebApi{
 		appCtx: c,
@@ -82,7 +92,7 @@ func (w *WebApi) appInfo(context *gin.Context) {
 		info := app.GetApplicationInfo()
 		context.JSON(200, gin.H{
 			"name":         info.Name,
-			"url":          "http://" + info.Name + "." + host,
+			"url":          scheme + "://" + info.Name + "." + host,
 			"environments": nil,
 			"owner":        info.UserEmail,
 			"containerId":  info.Id,

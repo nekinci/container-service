@@ -1,5 +1,6 @@
 import {EnvironmentDev} from "./environment-dev";
 import {EnvironmentProd} from "./environment-prod";
+import {EnvironmentDocker} from "./environment-docker";
 
 export interface Environment {
     rootUrl: string;
@@ -7,7 +8,17 @@ export interface Environment {
     snackbarHideDuration: number;
     wsUrl: string;
 }
+const systemEnv = process.env.HOST_ENV || 'DEV';
 
 export function getEnvironment(): Environment{
-    return new EnvironmentProd();
+    switch (systemEnv){
+        case 'DOCKER':
+            return new EnvironmentDocker();
+        case 'PROD':
+            return new EnvironmentProd();
+        case 'DEV':
+            return new EnvironmentDev();
+        default:
+            return new EnvironmentDev();
+    }
 }

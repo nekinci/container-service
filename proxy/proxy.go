@@ -27,6 +27,10 @@ func NewServer(ctx *application.Context) Proxy {
 
 func (p Proxy) ListenAndServeL7(addr string) error {
 
+	host := os.Getenv("HOST")
+	if len(host) == 0 {
+		host = "0.0.0.0"
+	}
 	go garbagecollector.ScheduleCollect(p.ctx)
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		hostName := request.Host
@@ -42,7 +46,7 @@ func (p Proxy) ListenAndServeL7(addr string) error {
 			}
 			return
 		}
-		serveProxy(fmt.Sprintf("http://0.0.0.0:%s", app.GetPort()), writer, request)
+		serveProxy(fmt.Sprintf("http://%s:%s", host, app.GetPort()), writer, request)
 	})
 
 	fmt.Printf("%v", http.ListenAndServe(addr, nil))
