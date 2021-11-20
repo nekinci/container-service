@@ -16,7 +16,7 @@ services:
       - '80:80'
     environment:
       - MONGO_CONN_STRING=''
-      - HOST=host.docker.internal
+      - HOST=172.17.0.1
       - DOMAIN=localhost
       - SCHEME=http
     network_mode: bridge
